@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple AR Test</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #enter-ar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+        #status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="status">Loading...</div>
+    <button id="enter-ar">Enter AR</button>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
+
+        let scene, camera, renderer, reticle;
+        let hitTestSource = null;
+        let hitTestSourceRequested = false;
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Reticle (green ring)
+            const ringGeometry = new THREE.RingGeometry(0.05, 0.07, 32);
+            const ringMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x00ff00, 
+                side: THREE.DoubleSide 
+            });
+            reticle = new THREE.Mesh(ringGeometry, ringMaterial);
+            reticle.matrixAutoUpdate = false;
+            reticle.visible = false;
+            scene.add(reticle);
+
+            // Light
+            const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+            scene.add(light);
+
+            document.getElementById('status').textContent = 'Ready! Tap Enter AR';
+        }
+
+        async function activateAR() {
+            try {
+                const session = await navigator.xr.requestSession('immersive-ar', {
+                    requiredFeatures: ['hit-test']
+                });
+
+                session.addEventListener('end', onSessionEnd);
+                session.addEventListener('select', onSelect);
+
+                await renderer.xr.setSession(session);
+
+                const viewerSpace = await session.requestReferenceSpace('viewer');
+                hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+                hitTestSourceRequested = true;
+
+                document.getElementById('status').textContent = 'AR Active! Point at floor and tap to place spheres';
+                document.getElementById('enter-ar').style.display = 'none';
+
+                console.log('AR Session Active');
+
+            } catch (error) {
+                console.error('AR Error:', error);
+                document.getElementById('status').textContent = 'AR Failed: ' + error.message;
+            }
+        }
+
+        function onSelect() {
+            if (reticle.visible) {
+                console.log('Placing sphere!');
+                
+                // Create red sphere
+                const geometry = new THREE.SphereGeometry(0.03, 16, 16);
+                const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const sphere = new THREE.Mesh(geometry, material);
+                
+                sphere.position.setFromMatrixPosition(reticle.matrix);
+                scene.add(sphere);
+                
+                console.log('Sphere placed at:', sphere.position);
+            } else {
+                console.log('No surface detected - move phone slowly over floor');
+            }
+        }
+
+        function onSessionEnd() {
+            hitTestSourceRequested = false;
+            hitTestSource = null;
+            document.getElementById('enter-ar').style.display = 'block';
+            document.getElementById('status').textContent = 'AR Ended';
+        }
+
+        function animate() {
+            renderer.setAnimationLoop(render);
+        }
+
+        function render(timestamp, frame) {
+            if (frame && hitTestSourceRequested && hitTestSource) {
+                const referenceSpace = renderer.xr.getReferenceSpace();
+                const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+                if (hitTestResults.length > 0) {
+                    const hit = hitTestResults[0];
+                    const pose = hit.getPose(referenceSpace);
+                    reticle.visible = true;
+                    reticle.matrix.fromArray(pose.transform.matrix);
+                } else {
+                    reticle.visible = false;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Check WebXR support
+        if ('xr' in navigator) {
+            navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+                if (supported) {
+                    init();
+                    animate();
+                    document.getElementById('enter-ar').addEventListener('click', activateAR);
+                } else {
+                    document.getElementById('status').textContent = 'AR not supported on this device';
+                }
+            });
+        } else {
+            document.getElementById('status').textContent = 'WebXR not available';
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
+
