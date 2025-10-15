@@ -1,0 +1,27 @@
+{
+  "name": "ar-repair-kit-generator",
+  "version": "0.1.0",
+  "description": "AR-based measurement tool for generating 3D-printable repair parts",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "ar",
+    "webxr",
+    "3d-printing",
+    "measurement",
+    "repair"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.158.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
+
