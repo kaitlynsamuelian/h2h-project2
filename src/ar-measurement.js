@@ -19,38 +19,64 @@ export class ARMeasurement {
     }
 
     createReticle() {
-        // Visual indicator for where user is pointing
-        const geometry = new THREE.RingGeometry(0.015, 0.02, 32);
+        // Visual indicator for where user is pointing - LARGER and more visible
+        const geometry = new THREE.RingGeometry(0.04, 0.06, 32);
         const material = new THREE.MeshBasicMaterial({ 
             color: 0x00ff00,
-            side: THREE.DoubleSide 
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.8
         });
         this.reticle = new THREE.Mesh(geometry, material);
         this.reticle.matrixAutoUpdate = false;
         this.reticle.visible = false;
+        
+        // Add a center dot to make it more visible
+        const dotGeometry = new THREE.CircleGeometry(0.01, 32);
+        const dotMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000,
+            side: THREE.DoubleSide
+        });
+        const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+        dot.position.z = 0.001; // Slightly in front
+        this.reticle.add(dot);
+        
         this.scene.add(this.reticle);
     }
 
     async startSession(session) {
         this.session = session;
+        console.log('AR Session started!');
         
         // Setup input source for tap detection
-        this.session.addEventListener('select', (event) => this.onSelect(event));
+        this.session.addEventListener('select', (event) => {
+            console.log('Screen tapped!');
+            this.onSelect(event);
+        });
         
         // Request hit test source
         const viewerSpace = await this.session.requestReferenceSpace('viewer');
         this.hitTestSourceRequested = true;
+        console.log('Hit test source requested');
         
         this.session.requestHitTestSource({ space: viewerSpace }).then((source) => {
             this.hitTestSource = source;
+            console.log('Hit test source ready!');
+        }).catch((error) => {
+            console.error('Hit test error:', error);
         });
     }
 
     onSelect(event) {
-        if (!this.reticle.visible) return;
+        if (!this.reticle.visible) {
+            console.log('Cannot place point - no surface detected');
+            return;
+        }
 
-        // Place a measurement point at the reticle position
-        const pointGeometry = new THREE.SphereGeometry(0.01, 16, 16);
+        console.log('Placing measurement point #' + (this.points.length + 1));
+
+        // Place a measurement point at the reticle position - LARGER and more visible
+        const pointGeometry = new THREE.SphereGeometry(0.02, 16, 16);
         const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const point = new THREE.Mesh(pointGeometry, pointMaterial);
         
@@ -64,15 +90,16 @@ export class ARMeasurement {
             const currPoint = this.points[this.points.length - 1];
             
             const distance = prevPoint.position.distanceTo(currPoint.position);
+            console.log('Distance measured: ' + (distance * 100).toFixed(1) + ' cm');
             
-            // Create line between points
+            // Create line between points - THICKER and more visible
             const lineGeometry = new THREE.BufferGeometry().setFromPoints([
                 prevPoint.position,
                 currPoint.position
             ]);
             const lineMaterial = new THREE.LineBasicMaterial({ 
                 color: 0xffffff,
-                linewidth: 2 
+                linewidth: 5
             });
             const line = new THREE.Line(lineGeometry, lineMaterial);
             this.scene.add(line);
@@ -107,6 +134,9 @@ export class ARMeasurement {
                 const pose = hit.getPose(referenceSpace);
 
                 if (pose) {
+                    if (!this.reticle.visible) {
+                        console.log('Surface detected! Green ring should appear');
+                    }
                     this.reticle.visible = true;
                     this.reticle.matrix.fromArray(pose.transform.matrix);
                 }
