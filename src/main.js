@@ -109,7 +109,9 @@ class ARRepairKitApp {
             this.arButton.classList.add('hidden');
             this.statusEl.textContent = 'AR Active - Tap to measure';
             
-            this.arMeasurement.startSession(session);
+            // Wait for AR measurement to fully initialize
+            await this.arMeasurement.startSession(session);
+            console.log('AR measurement system initialized');
 
             session.addEventListener('end', () => {
                 this.arButton.classList.remove('hidden');

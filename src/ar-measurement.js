@@ -54,17 +54,17 @@ export class ARMeasurement {
             this.onSelect(event);
         });
         
-        // Request hit test source
-        const viewerSpace = await this.session.requestReferenceSpace('viewer');
-        this.hitTestSourceRequested = true;
-        console.log('Hit test source requested');
-        
-        this.session.requestHitTestSource({ space: viewerSpace }).then((source) => {
-            this.hitTestSource = source;
+        // Request hit test source - properly await it
+        try {
+            const viewerSpace = await this.session.requestReferenceSpace('viewer');
+            console.log('Viewer space obtained');
+            
+            this.hitTestSource = await this.session.requestHitTestSource({ space: viewerSpace });
+            this.hitTestSourceRequested = true;
             console.log('Hit test source ready!');
-        }).catch((error) => {
+        } catch (error) {
             console.error('Hit test error:', error);
-        });
+        }
     }
 
     onSelect(event) {
