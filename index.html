@@ -151,12 +151,14 @@
             renderer.render(scene, camera);
         }
 
-        // Check WebXR support
+        // Initialize first
+        init();
+        animate();
+
+        // Then check WebXR support
         if ('xr' in navigator) {
             navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
                 if (supported) {
-                    init();
-                    animate();
                     document.getElementById('enter-ar').addEventListener('click', activateAR);
                 } else {
                     document.getElementById('status').textContent = 'AR not supported on this device';
@@ -167,9 +169,11 @@
         }
 
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
         });
     </script>
 </body>
